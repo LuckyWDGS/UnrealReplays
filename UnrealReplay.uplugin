@@ -1,0 +1,30 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "LuckyReplay",
+	"Description": "LuckyReplay",
+	"Category": "Scripting Languages",
+	"CreatedBy": "L",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"EnabledByDefault": true,
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "LuckyReplay",
+			"Type": "RunTime",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "BlueprintFileUtils",
+			"Enabled": true
+		}
+	]
+}
