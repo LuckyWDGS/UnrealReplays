@@ -6,9 +6,9 @@
 #include "Engine/GameInstance.h"
 #include "Engine/DemoNetDriver.h"
 
-void UUnrealReplayBPFLibrary::StartRecordingLuckyReplay(const UObject* WorldContextObject,FString ReplayName, FString FriendlyName)
+void UUnrealReplayBPFLibrary::StartRecordingReplay(const UObject* WorldContextObject,FString ReplayName)
 {
-    FriendlyName = FString::Printf(TEXT("Replay-%d-%d-%d"),
+    FString FriendlyName = FString::Printf(TEXT("Replay-%d-%d-%d"),
     FDateTime::Now().GetYear(), FDateTime::Now().GetMonth(), FDateTime::Now().GetDay());
     if(auto GI=UGameplayStatics::GetGameInstance(WorldContextObject)){
         GI->StartRecordingReplay(ReplayName, FriendlyName);
@@ -17,7 +17,7 @@ void UUnrealReplayBPFLibrary::StartRecordingLuckyReplay(const UObject* WorldCont
 
 }
 
-void UUnrealReplayBPFLibrary::StopRecordingLuckyReplay(const UObject* WorldContextObject)
+void UUnrealReplayBPFLibrary::StopRecordingReplay(const UObject* WorldContextObject)
 {
     if (auto GI = UGameplayStatics::GetGameInstance(WorldContextObject)) {
         GI->StopRecordingReplay();
@@ -25,7 +25,7 @@ void UUnrealReplayBPFLibrary::StopRecordingLuckyReplay(const UObject* WorldConte
     }
 }
 
-void UUnrealReplayBPFLibrary::PlayLuckyReplay(const UObject* WorldContextObject,FString ReplayName)
+void UUnrealReplayBPFLibrary::PlayPlayback(const UObject* WorldContextObject,FString ReplayName)
 {
     if (auto GI = UGameplayStatics::GetGameInstance(WorldContextObject)) {
         GI->PlayReplay(ReplayName);
@@ -33,7 +33,23 @@ void UUnrealReplayBPFLibrary::PlayLuckyReplay(const UObject* WorldContextObject,
     }
 }
 
-TArray<FString> UUnrealReplayBPFLibrary::GetAllLuckyReplays()
+void UUnrealReplayBPFLibrary::PlayReplay(const UObject* WorldContextObject)
+{
+    UUnrealReplayBPFLibrary* MyLibrary = Cast<UUnrealReplayBPFLibrary>(StaticClass()->GetDefaultObject());
+    if (MyLibrary) {
+        SetPlaybackPlayRate(WorldContextObject, MyLibrary->PlayRate);
+        return;
+    }
+    SetPlaybackPlayRate(WorldContextObject, 1);
+    return;
+}
+
+void UUnrealReplayBPFLibrary::PauseReplay(const UObject* WorldContextObject)
+{
+    WorldContextObject->GetWorld()->GetWorldSettings()->DemoPlayTimeDilation =0;
+}
+
+TArray<FString> UUnrealReplayBPFLibrary::GetAllReplays()
 {
     TArray<FString> AllReplays;
     FString ReplayPath = UKismetSystemLibrary::GetProjectSavedDirectory() + "Demos";
@@ -41,19 +57,20 @@ TArray<FString> UUnrealReplayBPFLibrary::GetAllLuckyReplays()
     return AllReplays;
 }
 
-void UUnrealReplayBPFLibrary::RenameLuckyReplay(const FString& ReplayName, const FString& NewFriendlyReplayName)
+bool UUnrealReplayBPFLibrary::RenameReplay(const FString& ReplayName, const FString& NewFriendlyReplayName)
 {
+    return IFileManager::Get().Move(*NewFriendlyReplayName, *ReplayName);
 }
 
-void UUnrealReplayBPFLibrary::DeleteLuckyReplay(const FString& ReplayName)
+bool UUnrealReplayBPFLibrary::DeleteReplay(const FString& ReplayName)
 {
-
+    return IFileManager::Get().Delete(*ReplayName);
 }
 
 void UUnrealReplayBPFLibrary::GotoTimeInSeconds(const UObject* WorldContextObject, float time)
 {
     // If the playback is playing, tell the demo net driver to skip to the given time
-    UDemoNetDriver* NetDriver = WorldContextObject->GetWorld()->DemoNetDriver;
+    UDemoNetDriver* NetDriver = WorldContextObject->GetWorld()->GetDemoNetDriver();
     if (NetDriver->IsPlaying())
     {
         NetDriver->GotoTimeInSeconds(time / 1000.f);
@@ -63,22 +80,33 @@ void UUnrealReplayBPFLibrary::GotoTimeInSeconds(const UObject* WorldContextObjec
 
 void UUnrealReplayBPFLibrary::SetPlaybackPlayRate(const UObject* WorldContextObject, float time)
 {
-    UDemoNetDriver* NetDriver = WorldContextObject->GetWorld()->DemoNetDriver;
-    if (NetDriver->IsPlaying())
-    {
-        NetDriver->GotoTimeInSeconds(time / 1000.f);
-        WorldContextObject->GetWorld()->GetWorldSettings()->DemoPlayTimeDilation = time;
-    }
+    WorldContextObject->GetWorld()->GetWorldSettings()->DemoPlayTimeDilation = time;
+    UUnrealReplayBPFLibrary* MyLibrary = Cast<UUnrealReplayBPFLibrary>(StaticClass()->GetDefaultObject());
+      if (MyLibrary) {
+            MyLibrary->PlayRate = time;
+      }
 }
 
 int UUnrealReplayBPFLibrary::GetCurrentTimeInMs(const UObject* WorldContextObject)
 {
     // If the world, and demo net driver is valid, 
-    UDemoNetDriver* NetDriver= WorldContextObject->GetWorld()->DemoNetDriver;
+    UDemoNetDriver* NetDriver= WorldContextObject->GetWorld()->GetDemoNetDriver();
     if (NetDriver)
     {
         // Return the current time * 1000 (for s -> ms conversion)
-        return NetDriver->DemoCurrentTime * 1000;
+        return NetDriver->GetDemoCurrentTime();
+    }
+    return 0;
+}
+
+int UUnrealReplayBPFLibrary::GetTotalTimeInMs(const UObject* WorldContextObject)
+{
+    // If the world, and demo net driver is valid, 
+    UDemoNetDriver* NetDriver = WorldContextObject->GetWorld()->GetDemoNetDriver();
+    if (NetDriver)
+    {
+        // Return the Total time * 1000 (for s -> ms conversion)
+        return NetDriver->GetDemoTotalTime();
     }
     return 0;
 }
